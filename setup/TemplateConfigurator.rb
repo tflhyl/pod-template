@@ -70,15 +70,16 @@ module Pod
     def run
       @message_bank.welcome_message
 
+      rename_pod_directory
+
       framework = self.ask_with_answers("What language do you want to use?", ["ObjC", "Swift"]).to_sym
       case framework
         when :swift
           ConfigureSwift.perform(configurator: self)
 
         when :objc
-          ConfigureIOS.perform(configurator: self)
+          ConfigureObjC.perform(configurator: self)
       end
-
 
       replace_variables_in_files
       clean_template_files
@@ -95,18 +96,17 @@ module Pod
     #----------------------------------------#
 
     def ensure_carthage_compatibility
-      FileUtils.ln_s('Example/Pods/Pods.xcodeproj', '_Pods.xcodeproj')
+      #TODO
+      #FileUtils.ln_s('Example/Pods/Pods.xcodeproj', '_Pods.xcodeproj')
     end
 
     def run_pod_install
       puts "\nRunning " + "pod install".magenta + " on your new library."
       puts ""
 
-      Dir.chdir("Example") do
-        system "pod install"
-      end
+      system "pod install"
 
-      `git add Example/#{pod_name}.xcodeproj/project.pbxproj`
+      `git add #{pod_name}.xcodeproj/project.pbxproj`
       `git commit -m "Initial commit"`
     end
 
@@ -148,7 +148,7 @@ module Pod
     end
 
     def customise_prefix
-      prefix_path = "Example/Tests/Tests-Prefix.pch"
+      prefix_path = "Tests/Tests-Prefix.pch"
       return unless File.exists? prefix_path
 
       pch = File.read prefix_path
@@ -158,11 +158,15 @@ module Pod
 
     def set_test_framework(test_type, extension)
       content_path = "setup/test_examples/" + test_type + "." + extension
-      folder = extension == "m" ? "ios" : "swift"
-      tests_path = "templates/" + folder + "/Example/Tests/Tests." + extension
+      folder = extension == "m" ? "objc" : "swift"
+      tests_path = "templates/" + folder + "/Tests/Tests." + extension
       tests = File.read tests_path
       tests.gsub!("${TEST_EXAMPLE}", File.read(content_path) )
       File.open(tests_path, "w") { |file| file.puts tests }
+    end
+
+    def rename_pod_directory
+      FileUtils.mv "POD", @pod_name
     end
 
     def rename_template_files
@@ -200,7 +204,7 @@ module Pod
     end
 
     def podfile_path
-      'Example/Podfile'
+      'Podfile'
     end
 
     #----------------------------------------#
